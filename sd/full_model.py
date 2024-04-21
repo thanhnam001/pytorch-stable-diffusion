@@ -2,10 +2,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from encoder import VAE_Encoder
-from decoder import VAE_Decoder
-from diffusion import Diffusion
-import model_converter
+from sd.encoder import VAE_Encoder
+from sd.decoder import VAE_Decoder
+from sd.diffusion import Diffusion
+from sd import model_converter
 
 class FullModel(nn.Module):
     def __init__(self, device: str='cpu', *args, **kwargs) -> None:

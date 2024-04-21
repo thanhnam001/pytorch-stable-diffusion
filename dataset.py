@@ -15,7 +15,7 @@ class IAMDataset(Dataset):
         self.full_data = []
         for full_line in lines:
             line = full_line.strip()
-            id, remain = line.split(',')[0]
+            id, remain = line.split(',')
             image, word = remain.split()
             image_path = os.path.join(root,image+'.png')
             assert os.path.exists(image_path), f'{image_path} is not exist'
@@ -35,7 +35,7 @@ class IAMDataset(Dataset):
         # label = self.label_transform(sample['label'])
         label = sample['label']
         
-        writer_id = sample['writer_id']
+        writer_id = int(sample['writer_id'])
 
         return writer_id, image, label
 
@@ -54,9 +54,10 @@ class Collate(object):
 
     def __call__(self, batch):
         writer_ids, images, labels = zip(*batch)
-        writer_ids = [torch.tensor(wid) for wid in writer_ids]
+        writer_ids = torch.tensor(writer_ids)
         
         images = [self.image_transform(i) for i in images]
+        images = torch.stack(images)
         
         new_labels = []
         for label in labels:
@@ -64,6 +65,6 @@ class Collate(object):
             if len(label) < self.label_max_len:
                 label += (self.label_max_len - len(label)) * [self.pad_token]
             new_labels.append(label)
-
+        new_labels = torch.tensor(new_labels)
         return writer_ids, images, new_labels
         

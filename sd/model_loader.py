@@ -1,7 +1,7 @@
-from clip import CLIP
-from encoder import VAE_Encoder
-from decoder import VAE_Decoder
-from diffusion import Diffusion
+from sd.clip import CLIP
+from sd.encoder import VAE_Encoder
+from sd.decoder import VAE_Decoder
+from sd.diffusion import Diffusion
 
 import model_converter
 

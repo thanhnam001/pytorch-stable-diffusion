@@ -11,12 +11,13 @@ from sd.encoder import VAE_Encoder
 from sd.decoder import VAE_Decoder
 from sd.full_model import FullModel
 from tqdm import tqdm
+from sd.pipeline import timestep_embedding
 
 def train(model:FullModel,
           sampler: DDPMSampler, dataloader, criterion, optimizer, args):
     model.train()    
     print('Start training')
-    latents_shape = (1,4,8,32)
+    latents_shape = (3,4,8,32)
     for epoch in range(args.epochs):
         print('Epoch: ', epoch)
         pbar = tqdm(dataloader)
@@ -27,15 +28,21 @@ def train(model:FullModel,
             labels.to(args.device)
             
             encoder_noise = torch.randn(latents_shape, device=args.device)
-            latent = model.vae_encoder(images)
+            latent = model.vae_encoder(images, encoder_noise)
             timesteps = sampler.timestep_sampling(images)
+            time_embedding = timestep_embedding(timesteps, 320)
+            # time_embedding: (B, 320)
+            # encoder_noise: (B, 4, 8, 32)
+            # latent: (B, 4, 8, 32)
+            context = 
+            latent_out = model.diffuser(latent, context, time_embedding)
             
             
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=1000)
-    parser.add_argument('--batch_size', type=int, default=224)
+    parser.add_argument('--batch_size', type=int, default=3)
     parser.add_argument('--num_workers', type=int, default=4) 
     parser.add_argument('--img_size', type=int, default=(64, 256))  
     parser.add_argument('--dataset', type=str, default='iam', help='iam or other dataset') 
@@ -57,7 +64,7 @@ def main():
     args = parser.parse_args()
     
     train_ds = IAMDataset(
-        root='',
+        root='data',
         label_path='gt/gan.iam.tr_va.gt.filter27'
     )
     collate_fn = Collate()
@@ -70,7 +77,8 @@ def main():
     criterion = nn.MSELoss()
     optimizer = torch.optim.AdamW(model.diffuser.parameters(), lr=0.0001)
     
-    sampler = DDPMSampler()
+    generator = torch.Generator()
+    sampler = DDPMSampler(generator)
     
     train(model, sampler, train_loader, criterion, optimizer, args)
 
