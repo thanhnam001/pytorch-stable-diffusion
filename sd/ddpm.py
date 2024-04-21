@@ -118,6 +118,6 @@ class DDPMSampler:
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
 
-        
-
+    def timestep_sampling(self, x):
+        return torch.randint(low=1, high=self.num_train_timesteps, size=(x.shape[0],), dtype=torch.float64)
     
