@@ -70,15 +70,22 @@ class CLIPLayer(nn.Module):
         return x
 
 class CLIP(nn.Module):
-    def __init__(self):
+    def __init__(self,
+                 vocab_size: int=49408,
+                 embed_dim: int=768,
+                 max_seq_len: int=77,
+                 n_heads: int=12):
         super().__init__()
-        self.embedding = CLIPEmbedding(49408, 768, 77)
+        '''
+        Default configs is use in pretrained model
+        '''
+        self.embedding = CLIPEmbedding(vocab_size, embed_dim, max_seq_len)
 
         self.layers = nn.ModuleList([
-            CLIPLayer(12, 768) for i in range(12)
+            CLIPLayer(n_heads, embed_dim) for i in range(n_heads)
         ])
 
-        self.layernorm = nn.LayerNorm(768)
+        self.layernorm = nn.LayerNorm(embed_dim)
     
     def forward(self, tokens: torch.LongTensor) -> torch.FloatTensor:
         tokens = tokens.type(torch.long)

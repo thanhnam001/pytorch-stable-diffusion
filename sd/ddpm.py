@@ -3,18 +3,18 @@ import numpy as np
 
 class DDPMSampler:
 
-    def __init__(self, generator: torch.Generator, num_training_steps=1000, beta_start: float = 0.00085, beta_end: float = 0.0120):
+    def __init__(self, generator: torch.Generator, num_training_steps=1000, beta_start: float = 0.00085, beta_end: float = 0.0120, device: str = 'cpu'):
         # Params "beta_start" and "beta_end" taken from: https://github.com/CompVis/stable-diffusion/blob/21f890f9da3cfbeaba8e2ac3c425ee9e998d5229/configs/stable-diffusion/v1-inference.yaml#L5C8-L5C8
         # For the naming conventions, refer to the DDPM paper (https://arxiv.org/pdf/2006.11239.pdf)
-        self.betas = torch.linspace(beta_start ** 0.5, beta_end ** 0.5, num_training_steps, dtype=torch.float32) ** 2
-        self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
-        self.one = torch.tensor(1.0)
+        self.betas = (torch.linspace(beta_start ** 0.5, beta_end ** 0.5, num_training_steps, dtype=torch.float32) ** 2).to(device)
+        self.alphas = (1.0 - self.betas).to(device)
+        self.alphas_cumprod = torch.cumprod(self.alphas, dim=0).to(device)
+        self.one = torch.tensor(1.0).to(device)
 
         self.generator = generator
 
         self.num_train_timesteps = num_training_steps
-        self.timesteps = torch.from_numpy(np.arange(0, num_training_steps)[::-1].copy())
+        self.timesteps = torch.from_numpy(np.arange(0, num_training_steps)[::-1].copy()).to(device)
 
     def set_inference_timesteps(self, num_inference_steps=50):
         self.num_inference_steps = num_inference_steps
@@ -68,6 +68,7 @@ class DDPMSampler:
 
         # 2. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
+        # print(latents.get_device(), beta_prod_t.get_device(), model_output.get_device(), alpha_prod_t.get_device())
         pred_original_sample = (latents - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
@@ -116,8 +117,8 @@ class DDPMSampler:
         # here mu = sqrt_alpha_prod * original_samples and sigma = sqrt_one_minus_alpha_prod
         noise = torch.randn(original_samples.shape, generator=self.generator, device=original_samples.device, dtype=original_samples.dtype)
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
-        return noisy_samples
+        return noisy_samples, noise
 
     def timestep_sampling(self, x):
-        return torch.randint(low=1, high=self.num_train_timesteps, size=(x.shape[0],), dtype=torch.float64)
+        return torch.randint(low=1, high=self.num_train_timesteps, size=(x.shape[0],), dtype=torch.int64)
     
