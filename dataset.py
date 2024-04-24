@@ -7,6 +7,26 @@ from PIL import Image
 import os
 import torchvision
 
+from config import Config
+
+class LabelConverter:
+    def __init__(self, charset:str = Config.charset, max_seq_len: int = Config.max_seq_len) -> None:
+        self.charset = charset
+        self.max_seq_len = max_seq_len
+        self.char_to_id = {c:i for i,c in enumerate(self.charset)}
+        self.id_to_char = {i:c for i,c in enumerate(self.charset)}
+        self.pad_token = len(self.charset)
+        
+    def string_to_ids(self, string: str):
+        ids = [self.char_to_id[c] for c in string]
+        if len(ids) < self.max_seq_len:
+            ids += [self.pad_token] * (self.max_seq_len - len(ids))
+        return ids
+    
+    def ids_to_string(self, ids: list[int]):
+        chars = [self.id_to_char.get(i, '') for i in ids]
+        return ''.join(chars)
+    
 class IAMDataset(Dataset):
     def __init__(self, root: str, label_path: str, image_transform=None, label_transform=None) -> None:
         super().__init__()
@@ -40,18 +60,13 @@ class IAMDataset(Dataset):
         return writer_id, image, label
 
 class Collate(object):
-    def __init__(self, image_transform=None, label_transform=None):
-        self.charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    def __init__(self, image_transform=None, label_converter=LabelConverter):
         self.image_transform =  torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
-        self.char_to_id = {c:i for i,c in enumerate(self.charset)}
-        self.id_to_char = {i:c for i,c in enumerate(self.charset)}
-        self.label_transform = lambda x: [self.char_to_id[c] for c in x]
-        self.label_max_len = 10
-        self.pad_token = 52
-
+        self.label_converter = label_converter()
+        
     def __call__(self, batch):
         writer_ids, images, labels = zip(*batch)
         writer_ids = torch.tensor(writer_ids)
@@ -61,9 +76,7 @@ class Collate(object):
         
         new_labels = []
         for label in labels:
-            label = self.label_transform(label)
-            if len(label) < self.label_max_len:
-                label += (self.label_max_len - len(label)) * [self.pad_token]
+            label = self.label_converter.string_to_ids(label)
             new_labels.append(label)
         new_labels = torch.tensor(new_labels)
         return writer_ids, images, new_labels
