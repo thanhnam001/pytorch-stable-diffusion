@@ -15,7 +15,7 @@ class LabelConverter:
         self.max_seq_len = max_seq_len
         self.char_to_id = {c:i for i,c in enumerate(self.charset)}
         self.id_to_char = {i:c for i,c in enumerate(self.charset)}
-        self.pad_token = len(self.charset)
+        self.pad_token = len(self.charset) # see Config.charset
         
     def string_to_ids(self, string: str):
         ids = [self.char_to_id[c] for c in string]
@@ -26,9 +26,30 @@ class LabelConverter:
     def ids_to_string(self, ids: list[int]):
         chars = [self.id_to_char.get(i, '') for i in ids]
         return ''.join(chars)
+
+class WriterIdConverter:
+    def __init__(self, root: str = Config.dataset_root, label_path: str = Config.label_path) -> None:
+        with open(label_path, 'r') as f:
+            lines = f.readlines()
+        self.wid_to_trainid = dict()
+        train_id = 0
+        for full_line in lines:
+            line = full_line.strip()
+            id, _ = line.split(',')
+            if id not in self.wid_to_trainid.keys():
+                self.wid_to_trainid[id] = train_id
+                train_id += 1
+        self.trainid_to_wid = {v:k for k, v in self.wid_to_trainid.items()}
     
+    def get_train_id(self, index: str) -> int:
+        return self.wid_to_trainid[index]
+    
+    def get_writer_id(self, index: int) -> str:
+        return self.trainid_to_wid[index]
+    
+                
 class IAMDataset(Dataset):
-    def __init__(self, root: str, label_path: str, image_transform=None, label_transform=None) -> None:
+    def __init__(self, root: str, label_path: str) -> None:
         super().__init__()
         with open(label_path, 'r') as f:
             lines = f.readlines()
@@ -40,8 +61,6 @@ class IAMDataset(Dataset):
             image_path = os.path.join(root,image+'.png')
             assert os.path.exists(image_path), f'{image_path} is not exist'
             self.full_data.append({'writer_id': id, 'image_path': image_path, 'label': word})
-        self.image_transform = image_transform
-        self.label_transform = label_transform
     
     def __len__(self):
         return len(self.full_data)
@@ -50,25 +69,25 @@ class IAMDataset(Dataset):
         sample = self.full_data[index]
         
         image = Image.open(sample['image_path']).convert('RGB')
-        # image = self.image_transform(image)
         
-        # label = self.label_transform(sample['label'])
         label = sample['label']
         
-        writer_id = int(sample['writer_id'])
+        writer_id = sample['writer_id']
 
         return writer_id, image, label
 
 class Collate(object):
-    def __init__(self, image_transform=None, label_converter=LabelConverter):
+    def __init__(self, image_transform=None, label_converter=LabelConverter, wid_converter=WriterIdConverter):
         self.image_transform =  torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
         self.label_converter = label_converter()
+        self.wid_converter = wid_converter()
         
     def __call__(self, batch):
         writer_ids, images, labels = zip(*batch)
+        writer_ids = [self.wid_converter.get_train_id(i) for i in writer_ids]
         writer_ids = torch.tensor(writer_ids)
         
         images = [self.image_transform(i) for i in images]

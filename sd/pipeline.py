@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from tqdm import tqdm
-from sd.ddpm import DDPMSampler
+from sampler.ddpm import DDPMSampler
 import math 
 from einops import repeat
 
