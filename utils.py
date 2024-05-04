@@ -4,6 +4,8 @@ import os
 import torch
 import torchvision
 from dataloader.dataset import LabelConverter
+import random
+import numpy as np
 
 from config import Config
 
@@ -31,6 +33,12 @@ def setup_experiment():
     with open(f'{Config.save_path}/config.yaml','w') as f:
         print_config(f, Config, 4)
 
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
 def rescale(x, old_range, new_range, clamp=False):
     '''
     Rescale image from `old_range` to `new_range` and clamp if needed
@@ -54,7 +62,7 @@ def label_converter(texts: list[str], converter=LabelConverter, to_tensor=True):
         converted_ids.append(ids)
     return converted_ids
 
-def save_images(images, labels, path, latent=Config.latent, **kwargs):
+def save_images(images, labels, path=None, latent=Config.latent, **kwargs):
     h, w = Config.img_size
     rows, cols = 2, 8
     background = Image.new('RGB', size=(cols*w, rows*h))
@@ -63,16 +71,14 @@ def save_images(images, labels, path, latent=Config.latent, **kwargs):
 
         for i, (image, label) in enumerate(zip(images, labels)):
             im = torchvision.transforms.ToPILImage()(image)
-            # print(im.shape,label.item())
-            
-            # im.show()
             draw = ImageDraw.Draw(im)
             font = ImageFont.truetype('arial.ttf',size=16)
             draw.text((0,0),label,(255,0,0),font=font)
             background.paste(im, box=(i%cols*w, i//cols*h))
     else:
-        pass
+        raise NotImplementedError
         # ndarr = grid.permute(1, 2, 0).to('cpu').numpy()
         # im = Image.fromarray(ndarr)
-    background.save(path)
+    if path:
+        background.save(path)
     return background

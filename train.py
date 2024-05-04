@@ -15,9 +15,9 @@ from tqdm import tqdm
 from sd.pipeline import timestep_embedding
 from utils import *
 
-def generate_image(text: torch.Tensor, styles: torch.Tensor, model: FullModel, sampler: DDPMSampler) -> torch.Tensor:
+def generate_image(text: torch.Tensor, ref_images, styles: torch.Tensor, model: FullModel, sampler: DDPMSampler) -> torch.Tensor:
     latent = torch.randn((text.shape[0],4,8,32), device=Config.device)
-    context = model.label_style_encoder(text, None, styles)
+    context = model.label_style_encoder(text, ref_images, styles)
     for ts in tqdm(sampler.timesteps):
         ts = torch.tensor([ts])
         latent_input = latent
@@ -29,7 +29,7 @@ def generate_image(text: torch.Tensor, styles: torch.Tensor, model: FullModel, s
     images = images.to("cpu", torch.uint8)
     # (Batch_Size, Channel, Height, Width)
     return images
-    
+
 def train(model: FullModel,
           sampler: DDPMSampler,
           dataloader: DataLoader,
@@ -72,7 +72,7 @@ def train(model: FullModel,
             optimizer.step()
             pbar.set_postfix(MSE=loss.item())
 
-        if epoch % 20 == 0:
+        if epoch % 5 == 0:
             model.eval()
             with torch.no_grad():
                 print('{:*^100}'.format('Generate sample'))
@@ -89,6 +89,8 @@ def train(model: FullModel,
             
 def main():
     setup_experiment()
+    set_seed(Config.seed)
+    
     train_ds = IAMDataset(
         root=Config.dataset_root,
         label_path=Config.label_path

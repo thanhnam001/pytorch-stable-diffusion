@@ -11,7 +11,8 @@ class LabelStyleEncoder(object):
     num_writers = 339
 
 class Config(object):
-    device = 'cuda:3'
+    device = 'cuda:1'
+    seed = 42
 
     # Label config
     charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' # 52
@@ -36,9 +37,13 @@ class Config(object):
     # LabelStyleEncoder
     label_style_encoder = LabelStyleEncoder
     
-    # Misc
+    # Dataset
     dataset_root = '/data/ocr/namvt17/WordStylist/data'
     label_path = 'gt/gan.iam.tr_va.gt.filter27'
     # label_path = 'gt/train_samples'
     save_path = './output'
     
+    # Image render
+    font_path = 'arial.ttf'
+    font_size = 14
+    char_img_size = (16, 16)
